@@ -157,6 +157,7 @@ function SignInForm() {
 }
 
 function SignUpForm() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -166,14 +167,26 @@ function SignUpForm() {
     e.preventDefault();
     setLoading(true);
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: redirectUrl, data: { full_name: name } },
     });
     setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success("Account created! You're signed in.");
+    if (error) {
+      if (error.status === 429 || error.message?.toLowerCase().includes("rate limit") || error.message?.toLowerCase().includes("security")) {
+        toast.error("Rate limit exceeded! By default, Supabase limits signups to 3 per hour. You can easily increase or disable this limit in your Supabase Dashboard under Authentication ➔ Rate Limits.", {
+          duration: 10000
+        });
+      } else {
+        toast.error(error.message);
+      }
+    } else if (data?.session) {
+      toast.success("Account created! You're signed in.");
+      navigate({ to: "/" });
+    } else {
+      toast.success("Account created! Please check your email inbox to verify your account.");
+    }
   };
 
   return (
